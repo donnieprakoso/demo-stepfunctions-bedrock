@@ -1,0 +1,23 @@
+{
+  "Comment": "ASL for invoke model demo",
+  "StartAt": "Invoke model",
+  "States": {
+    "Invoke model": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "cohere.command-text-v14",
+        "Body": {
+          "prompt.$": "$.prompt_one",
+          "max_tokens": 250
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "End": true,
+      "ResultSelector": {
+        "result_one.$": "$.Body.generations[0].text"
+      }
+    }
+  }
+}

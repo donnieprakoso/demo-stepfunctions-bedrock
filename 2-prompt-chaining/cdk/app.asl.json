@@ -1,0 +1,128 @@
+{
+  "Comment": "An example of using Bedrock to chain prompts and their responses together.",
+  "StartAt": "Generate tagline",
+  "States": {
+    "Generate tagline": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "cohere.command-text-v14",
+        "Body": {
+          "prompt.$": "$.prompt_one",
+          "max_tokens": 500
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "Next": "Add first result to conversation history",
+      "ResultPath": "$.result_one",
+      "ResultSelector": {
+        "result_one.$": "$.Body.generations[0].text"
+      }
+    },
+    "Add first result to conversation history": {
+      "Type": "Pass",
+      "Next": "Generate post",
+      "Parameters": {
+        "convo_one.$": "States.Format('{}\n{}', $.prompt_one, $.result_one.result_one)"
+      },
+      "ResultPath": "$.convo_one"
+    },
+    "Generate post": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "anthropic.claude-v2:1",
+        "Body": {
+          "prompt.$": "States.Format('\n\nHuman: {}\n{}\n\nAssistant:', $.prompt_two, $.convo_one.convo_one)",
+          "max_tokens_to_sample": 500,
+          "temperature": 0.5,
+          "top_k": 250,
+          "top_p": 0.7,
+          "stop_sequences": [
+            "\n\nHuman:"
+          ],
+          "anthropic_version": "bedrock-2023-05-31"
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "Next": "Add second result to conversation history",
+      "ResultPath": "$.result_two",
+      "ResultSelector": {
+        "result_two.$": "$.Body.completion"
+      }
+    },
+    "Add second result to conversation history": {
+      "Type": "Pass",
+      "Next": "Generate featured image",
+      "Parameters": {
+        "convo_two.$": "States.Format('{}\n{}\n{}', $.convo_one.convo_one, $.prompt_two, $.result_two.result_two)"
+      },
+      "ResultPath": "$.convo_two"
+    },
+    "Generate featured image": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "stability.stable-diffusion-xl-v1",
+        "Body": {
+          "text_prompts": [
+            {
+              "text.$": "States.Format('{}\n{}', $.prompt_three, $.convo_two.convo_two)",
+              "weight": 1
+            }
+          ],
+          "height": 1024,
+          "width": 1024,
+          "cfg_scale": 7,
+          "seed": 0,
+          "steps": 30,
+          "style_preset": "cinematic"
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*",
+        "Output": {
+          "S3Uri": "s3://${s3_bucket}/output.json"
+        }
+      },
+      "ResultPath": "$.result_three",
+      "ResultSelector": {
+        "result_three.$": "$.Body"
+      },
+      "Next": "Add third result to conversation history"
+    },
+    "Add third result to conversation history": {
+      "Type": "Pass",
+      "Next": "Processing by Lambda",
+      "Parameters": {
+        "title.$":"$.result_one.result_one",
+        "description.$": "$.result_two.result_two",
+        "image.$":"$.result_three.result_three"        
+      }
+    },
+    "Processing by Lambda": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${lambda_arn}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],      
+      "End": true
+    }
+  }
+}

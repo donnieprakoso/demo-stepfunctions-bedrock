@@ -1,0 +1,92 @@
+{
+  "Comment": "An example of using Bedrock to chain prompts and their responses together.",
+  "StartAt": "Invoke model with first prompt",
+  "States": {
+    "Invoke model with first prompt": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "cohere.command-text-v14",
+        "Body": {
+          "prompt.$": "$.prompt_one",
+          "max_tokens": 500
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "Next": "Add first result to conversation history",
+      "ResultPath": "$.result_one",
+      "ResultSelector": {
+        "result_one.$": "$.Body.generations[0].text"
+      }
+    },
+    "Add first result to conversation history": {
+      "Type": "Pass",
+      "Next": "Invoke model with second prompt",
+      "Parameters": {
+        "convo_one.$": "States.Format('{}\n{}', $.prompt_one, $.result_one.result_one)"
+      },
+      "ResultPath": "$.convo_one"
+    },
+    "Invoke model with second prompt": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "anthropic.claude-v2:1",
+        "Body": {
+          "prompt.$": "States.Format('\n\nHuman: {}\n{}', $.convo_one.convo_one, $.prompt_two\n\nAssistant:)",
+          "max_tokens": 500,
+          "temperature": 0.5,
+          "top_k": 250,
+          "top_p": 0.7,
+          "stop_sequences": [
+            "\n\nHuman:"
+          ],
+          "anthropic_version": "bedrock-2023-05-31"
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "Next": "Add second result to conversation history",
+      "ResultSelector": {
+        "result_two.$": "$.Body.generations[0].text"
+      },
+      "ResultPath": "$.result_two"
+    },
+    "Add second result to conversation history": {
+      "Type": "Pass",
+      "Next": "Invoke model with third prompt",
+      "Parameters": {
+        "convo_two.$": "States.Format('{}\n{}\n{}', $.convo_one.convo_one, $.prompt_two, $.result_two.result_two)"
+      },
+      "ResultPath": "$.convo_two"
+    },
+    "Invoke model with third prompt": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "stability.stable-diffusion-xl-v1",
+        "Body": {
+          "text_prompts": [
+            {
+              "text": "States.Format('{}\n{}', $.convo_two.convo_two, $.prompt_three)",
+              "weight": 1
+            }
+          ],
+          "height": 1024,
+          "width": 1024,
+          "cfg_scale": 7,
+          "seed": 0,
+          "steps": 30,
+          "style_preset": "digital-art"
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "End": true,
+      "ResultSelector": {
+        "result_three.$": "$.Body.artifacts[0].base64"
+      }
+    }
+  }
+}

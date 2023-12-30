@@ -1,0 +1,163 @@
+{
+  "Comment": "An example of using Bedrock to chain prompts and their responses together.",
+  "StartAt": "Parallel",
+  "States": {
+    "Parallel": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "Generate tagline - cohere",
+          "States": {
+            "Generate tagline - cohere": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::bedrock:invokeModel",
+              "Parameters": {
+                "ModelId": "cohere.command-text-v14",
+                "Body": {
+                  "prompt.$": "$.prompt_one",
+                  "max_tokens": 500
+                },
+                "ContentType": "application/json",
+                "Accept": "*/*"
+              },
+              "ResultPath": "$.result_one",
+              "ResultSelector": {
+                "result_one.$": "$.Body.generations[0].text"
+              },
+              "Next": "Add first result to conversation history - cohere"
+            },
+            "Add first result to conversation history - cohere": {
+              "Type": "Pass",
+              "Parameters": {
+                "convo_one.$": "States.Format('{}\n{}', $.prompt_one, $.result_one.result_one)"
+              },
+              "ResultPath": "$.convo_one",
+              "Next": "Generate post - cohere"
+            },
+            "Generate post - cohere": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::bedrock:invokeModel",
+              "Parameters": {
+                "ModelId": "cohere.command-text-v14",
+                "Body": {
+                  "prompt.$": "States.Format('{}\n{}\n:', $.prompt_two, $.convo_one.convo_one)",
+                  "max_tokens": 500
+                },
+                "ContentType": "application/json",
+                "Accept": "*/*"
+              },
+              "ResultPath": "$.result_two",
+              "ResultSelector": {
+                "result_two.$": "$.Body.generations[0].text"
+              },
+              "Next": "Add second result to conversation history - cohere"
+            },
+            "Add second result to conversation history - cohere": {
+              "Type": "Pass",
+              "Parameters": {
+                "convo_two.$": "States.Format('{}\n{}\n{}', $.convo_one.convo_one, $.prompt_two, $.result_two.result_two)"
+              },
+              "ResultPath": "$.convo_two",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Generate tagline - claude",
+          "States": {
+            "Generate tagline - claude": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::bedrock:invokeModel",
+              "Parameters": {
+                "ModelId": "anthropic.claude-v2:1",
+                "Body": {
+                  "prompt.$": "States.Format('\n\nHuman: {}\n\nAssistant:', $.prompt_one)",
+                  "max_tokens_to_sample": 500,
+                  "temperature": 0.5,
+                  "top_k": 250,
+                  "top_p": 0.7,
+                  "stop_sequences": [
+                    "\n\nHuman:"
+                  ],
+                  "anthropic_version": "bedrock-2023-05-31"
+                },
+                "ContentType": "application/json",
+                "Accept": "*/*"
+              },
+              "ResultPath": "$.result_one",
+              "ResultSelector": {
+                "result_one.$": "$.Body.completion"
+              },
+              "Next": "Add first result to conversation history - claude"
+            },
+            "Add first result to conversation history - claude": {
+              "Type": "Pass",
+              "Parameters": {
+                "convo_one.$": "States.Format('{}\n{}', $.prompt_one, $.result_one.result_one)"
+              },
+              "ResultPath": "$.convo_one",
+              "Next": "Generate post - claude"
+            },
+            "Generate post - claude": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::bedrock:invokeModel",
+              "Parameters": {
+                "ModelId": "anthropic.claude-v2:1",
+                "Body": {
+                  "prompt.$": "States.Format('\n\nHuman: {}\n{}\n\nAssistant:', $.prompt_two, $.convo_one.convo_one)",
+                  "max_tokens_to_sample": 500,
+                  "temperature": 0.5,
+                  "top_k": 250,
+                  "top_p": 0.7,
+                  "stop_sequences": [
+                    "\n\nHuman:"
+                  ],
+                  "anthropic_version": "bedrock-2023-05-31"
+                },
+                "ContentType": "application/json",
+                "Accept": "*/*"
+              },
+              "ResultPath": "$.result_two",
+              "ResultSelector": {
+                "result_two.$": "$.Body.completion"
+              },
+              "Next": "Add second result to conversation history - claude"
+            },
+            "Add second result to conversation history - claude": {
+              "Type": "Pass",
+              "Parameters": {
+                "convo_two.$": "States.Format('{}\n{}\n{}', $.convo_one.convo_one, $.prompt_two, $.result_two.result_two)"
+              },
+              "ResultPath": "$.convo_two",
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "Lambda Invoke"
+    },
+    "Lambda Invoke": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${lambda_arn}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "End": true
+    }
+  }
+}
