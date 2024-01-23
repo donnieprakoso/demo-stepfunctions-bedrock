@@ -55,9 +55,11 @@
             "Add second result to conversation history - cohere": {
               "Type": "Pass",
               "Parameters": {
-                "convo_two.$": "States.Format('{}\n{}\n{}', $.convo_one.convo_one, $.prompt_two, $.result_two.result_two)"
-              },
-              "ResultPath": "$.convo_two",
+                "cohere":{
+                  "title.$":"$.result_one.result_one",
+                  "description.$": "$.result_two.result_two"    
+                }
+            },
               "End": true
             }
           }
@@ -126,9 +128,11 @@
             "Add second result to conversation history - claude": {
               "Type": "Pass",
               "Parameters": {
-                "convo_two.$": "States.Format('{}\n{}\n{}', $.convo_one.convo_one, $.prompt_two, $.result_two.result_two)"
+                  "claude":{
+                    "title.$":"$.result_one.result_one",
+                    "description.$": "$.result_two.result_two"    
+                  }
               },
-              "ResultPath": "$.convo_two",
               "End": true
             }
           }
