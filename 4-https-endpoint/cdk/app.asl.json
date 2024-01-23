@@ -1,0 +1,32 @@
+{
+  "Comment": "Demo for HTTPS endpoints ",
+  "StartAt": "Call HuggingFace API",
+  "States": {
+    "Call HuggingFace API": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::http:invoke",
+      "Parameters": {
+        "ApiEndpoint": "${url_huggingface}",
+        "Method": "POST",
+        "Authentication": {
+          "ConnectionArn": "${arn_connection}"
+        },
+        "RequestBody": {
+            "inputs": "The answer to the universe is [MASK]."
+            }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "BackoffRate": 2,
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "End": true
+    }
+  }
+}
