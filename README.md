@@ -21,18 +21,17 @@ And, if you no longer need it, you can simply run
 $> cdk destroy
 ```
 
-...and it will be removed from your account. 
-
-
 ## Modules
 
 There are 4 modules in total. Below table shows the description and the direct link for easy access.
 
-| Module Number  | Description |
+| Module  | Description |
 | -------------  | ----------- |
-| 1 Model Invoke |  This demo shows a basic (and mostly used) AWS StepFunctions integration with Amazon Bedrock |
-| 2 Prompt Chaining | This demo shows how you can implement prompt chaining | 
-| 3 Parallel Chaining | Shows multiple workflows that can run at the same time |
-| 4 HTTPS Endpoint | Shows how to integrate with Amazon EventBridge API Destinations to call external APIs |
+| [1 Model Invoke](https://github.com/donnieprakoso/demo-stepfunctions-bedrock/tree/main/1-model-invoke/cdk) |  This demo shows a basic (and mostly used) AWS StepFunctions integration with Amazon Bedrock |
+| [2 Prompt Chaining](https://github.com/donnieprakoso/demo-stepfunctions-bedrock/tree/main/2-prompt-chaining) | This demo shows how you can implement prompt chaining | 
+| [3 Parallel Chaining](https://github.com/donnieprakoso/demo-stepfunctions-bedrock/tree/main/3-parallel) | Shows multiple workflows that can run at the same time |
+| [4 HTTPS Endpoint](https://github.com/donnieprakoso/demo-stepfunctions-bedrock/tree/main/4-https-endpoint/cdk) | Shows how to integrate with Amazon EventBridge API Destinations to call external APIs |
 
 Happy building!
+
+-- [Donnie](https://linkedin.com/in/donnieprakoso)
